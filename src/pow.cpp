@@ -24,6 +24,20 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
         return nProofOfWorkLimit;
 
     {
+        // Special difficulty rule for mainnet emergency cases:
+        // If activated and the new block's timestamp is more than
+        // `nPowEmergencyMinDifficultyDelayMultiplier * block interval`, allow
+        // mining of a min-difficulty block.
+        if (params.nPowEmergencyMinDifficultyAfterHeight != boost::none &&
+            params.nPowEmergencyMinDifficultyDelayMultiplier != boost::none &&
+            pindexLast->nHeight >= params.nPowEmergencyMinDifficultyAfterHeight.get())
+        {
+            if (pblock && pblock->GetBlockTime() > pindexLast->GetBlockTime() +
+                params.PoWTargetSpacing(pindexLast->nHeight + 1) *
+                    params.nPowEmergencyMinDifficultyDelayMultiplier.get())
+                return nProofOfWorkLimit;
+        }
+
         // Comparing to pindexLast->nHeight with >= because this function
         // returns the work required for the block after pindexLast.
         if (params.nPowAllowMinDifficultyBlocksAfterHeight != boost::none &&
