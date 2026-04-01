@@ -260,6 +260,14 @@ struct Params {
     unsigned int nEquihashK = 0;
     uint256 powLimit;
     boost::optional<uint32_t> nPowAllowMinDifficultyBlocksAfterHeight;
+    /**
+     * Mainnet emergency liveness fallback. If configured, then for blocks after
+     * this height, when the candidate block timestamp exceeds:
+     *   prev_block_time + nPowEmergencyMinDifficultyDelayMultiplier * targetSpacing
+     * the required target may fall back to powLimit.
+     */
+    boost::optional<uint32_t> nPowEmergencyMinDifficultyAfterHeight;
+    boost::optional<uint32_t> nPowEmergencyMinDifficultyDelayMultiplier;
     int64_t nPowAveragingWindow;
     int64_t nPowMaxAdjustDown;
     int64_t nPowMaxAdjustUp;

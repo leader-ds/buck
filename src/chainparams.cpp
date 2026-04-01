@@ -72,6 +72,8 @@ static CBlock CreateGenesisBlock(uint32_t nTime, const uint256& nNonce, const st
  */
 
 const arith_uint256 maxUint = UintToArith256(uint256S("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
+static const uint32_t MAINNET_EMERGENCY_MIN_DIFFICULTY_ACTIVATION_HEIGHT = 2757000;
+static const uint32_t MAINNET_EMERGENCY_MIN_DIFFICULTY_DELAY_MULTIPLIER = 12;
 
 class CMainParams : public CChainParams {
 public:
@@ -98,6 +100,8 @@ public:
         consensus.nPreBlossomPowTargetSpacing = Consensus::PRE_BLOSSOM_POW_TARGET_SPACING;
         consensus.nPostBlossomPowTargetSpacing = Consensus::POST_BLOSSOM_POW_TARGET_SPACING;
         consensus.nPowAllowMinDifficultyBlocksAfterHeight = boost::none;
+        consensus.nPowEmergencyMinDifficultyAfterHeight = MAINNET_EMERGENCY_MIN_DIFFICULTY_ACTIVATION_HEIGHT;
+        consensus.nPowEmergencyMinDifficultyDelayMultiplier = MAINNET_EMERGENCY_MIN_DIFFICULTY_DELAY_MULTIPLIER;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nProtocolVersion = 170002;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nActivationHeight =
             Consensus::NetworkUpgrade::ALWAYS_ACTIVE;

@@ -37,6 +37,24 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
         }
     }
 
+    {
+        // Comparing to pindexLast->nHeight with >= because this function
+        // returns the work required for the block after pindexLast.
+        if (params.nPowEmergencyMinDifficultyAfterHeight != boost::none &&
+            params.nPowEmergencyMinDifficultyDelayMultiplier != boost::none &&
+            pindexLast->nHeight >= params.nPowEmergencyMinDifficultyAfterHeight.get())
+        {
+            if (pblock) {
+                const int64_t targetSpacing = params.PoWTargetSpacing(pindexLast->nHeight + 1);
+                const int64_t emergencyDelay =
+                    targetSpacing * params.nPowEmergencyMinDifficultyDelayMultiplier.get();
+                if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + emergencyDelay) {
+                    return nProofOfWorkLimit;
+                }
+            }
+        }
+    }
+
     // Find the first block in the averaging interval
     const CBlockIndex* pindexFirst = pindexLast;
     arith_uint256 bnTot {0};
