@@ -105,14 +105,14 @@ addnode=68.3.158.79
 # Change back to your home folder
 cd ..
 # Start Buck
-~/buck/src/zcashd
+~/buck/src/buckd
 # The node will download blocks. You are now running a Buck node and wallet!
 
 # Optional
 # If you want to run Buck in the background, start buck with the -daemon flag:
-~/buck/src/zcashd -daemon
+~/buck/src/buckd -daemon
 # To stop Buck safely if it is running in daemon, close the application with zcash-cli stop
-zcash-cli stop
+buck-cli stop
 ```
 ### Windows
 Windows build is maintained in [buck-gui-wallet-win](https://github.com/BuckCoin/buck-gui-wallet-win/releases) project.
