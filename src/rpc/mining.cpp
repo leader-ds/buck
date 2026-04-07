@@ -541,7 +541,19 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     if (vNodes.empty())
         throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Buck is not connected!");
 
-    if (IsInitialBlockDownload(Params()))
+    // Keep the standard IBD mining gate, but allow recovery when we are fully
+    // caught up to the best-known header on this node and only appear to be in
+    // IBD because the tip is old. This lets a stalled network restart block
+    // production without relaxing import/reindex or minimum-chainwork safety.
+    const arith_uint256 minChainWork = UintToArith256(Params().GetConsensus().nMinimumChainWork);
+    const bool hasTip = (chainActive.Tip() != nullptr);
+    const bool syncedToBestKnownHeader =
+        hasTip && pindexBestHeader != nullptr && chainActive.Tip() == pindexBestHeader;
+    const bool hasSufficientChainWork = hasTip && (chainActive.Tip()->nChainWork >= minChainWork);
+    const bool allowStaleTipTemplateWhileIBD =
+        !fImporting && !fReindex && syncedToBestKnownHeader && hasSufficientChainWork;
+
+    if (IsInitialBlockDownload(Params()) && !allowStaleTipTemplateWhileIBD)
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Buck is downloading blocks...");
 
     static unsigned int nTransactionsUpdatedLast;
