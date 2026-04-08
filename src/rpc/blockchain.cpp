@@ -20,6 +20,8 @@
 
 #include <stdint.h>
 
+#include <algorithm>
+#include <cctype>
 #include <univalue.h>
 
 #include <regex>
@@ -599,6 +601,90 @@ UniValue getblockhash(const UniValue& params, bool fHelp)
 
     CBlockIndex* pblockindex = chainActive[nHeight];
     return pblockindex->GetBlockHash().GetHex();
+}
+
+static const CBlockIndex* ParseHashOrHeight(const UniValue& param)
+{
+    if (param.isNum()) {
+        int height = param.get_int();
+        if (height < 0 || height > chainActive.Height()) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Block height out of range");
+        }
+        return chainActive[height];
+    }
+
+    if (param.isStr()) {
+        const std::string str = param.get_str();
+        if (!str.empty() && std::all_of(str.begin(), str.end(), [](unsigned char c){ return std::isdigit(c); })) {
+            int height = atoi(str);
+            if (height < 0 || height > chainActive.Height()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Block height out of range");
+            }
+            return chainActive[height];
+        }
+
+        uint256 hash = uint256S(str);
+        auto mi = mapBlockIndex.find(hash);
+        if (mi == mapBlockIndex.end()) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+        }
+        return mi->second;
+    }
+
+    throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid block specifier");
+}
+
+UniValue z_gettreestate(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "z_gettreestate \"hash|height\"\n"
+            "\nReturns the Sapling tree state for the given block.\n"
+            "\nArguments:\n"
+            "1. \"hash|height\"    (string or numeric, required) block hash or height\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"network\": \"xxxx\",            (string) current network name\n"
+            "  \"height\": xxxxx,              (numeric) block height\n"
+            "  \"hash\": \"xxxx\",              (string) block hash\n"
+            "  \"time\": xxxxx,                (numeric) block time\n"
+            "  \"saplingTree\": \"xxxx\",       (string) serialized Sapling note commitment tree (hex)\n"
+            "  \"finalsaplingroot\": \"xxxx\",  (string) Sapling note commitment tree root\n"
+            "  \"orchardTree\": \"\"            (string) empty because Orchard is not implemented in this chain\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("z_gettreestate", "\"00000000...\"")
+            + HelpExampleCli("z_gettreestate", "100")
+            + HelpExampleRpc("z_gettreestate", "\"00000000...\"")
+            + HelpExampleRpc("z_gettreestate", "100")
+        );
+
+    LOCK(cs_main);
+
+    const CBlockIndex* pindex = ParseHashOrHeight(params[0]);
+    SaplingMerkleTree tree;
+    if (!pcoinsTip->GetSaplingAnchorAt(pindex->hashFinalSaplingRoot, tree)) {
+        SaplingMerkleTree emptyTree;
+        if (pindex->hashFinalSaplingRoot == emptyTree.root()) {
+            tree = emptyTree;
+        } else {
+            throw JSONRPCError(RPC_DATABASE_ERROR, "Unable to fetch Sapling tree state for block");
+        }
+    }
+
+    CDataStream ssTree(SER_NETWORK, PROTOCOL_VERSION);
+    ssTree << tree;
+
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("network", Params().NetworkIDString());
+    obj.pushKV("height", pindex->nHeight);
+    obj.pushKV("hash", pindex->GetBlockHash().GetHex());
+    obj.pushKV("time", static_cast<int64_t>(pindex->nTime));
+    obj.pushKV("saplingTree", HexStr(ssTree.begin(), ssTree.end()));
+    obj.pushKV("finalsaplingroot", pindex->hashFinalSaplingRoot.GetHex());
+    obj.pushKV("orchardTree", "");
+
+    return obj;
 }
 
 UniValue getblockheader(const UniValue& params, bool fHelp)
@@ -1322,6 +1408,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getblockcount",          &getblockcount,          true  },
     { "blockchain",         "getblock",               &getblock,               true  },
     { "blockchain",         "getblockhash",           &getblockhash,           true  },
+    { "blockchain",         "z_gettreestate",         &z_gettreestate,         true  },
     { "blockchain",         "getblockheader",         &getblockheader,         true  },
     { "blockchain",         "getchaintips",           &getchaintips,           true  },
     { "blockchain",         "getdifficulty",          &getdifficulty,          true  },
